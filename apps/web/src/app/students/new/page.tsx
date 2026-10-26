@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
@@ -47,7 +48,7 @@ export default function AddStudentPage() {
 
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/v1/institution/students/verify-apaar`, {
+      const res = await apiFetch(`${apiBase}/api/v1/institution/students/verify-apaar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apaar_id: apaarId, name, dob }),
@@ -88,7 +89,7 @@ export default function AddStudentPage() {
 
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/v1/institution/students`, {
+      const res = await apiFetch(`${apiBase}/api/v1/institution/students`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

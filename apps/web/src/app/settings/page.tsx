@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { API_BASE, apiFetch } from "@/lib/api";
 import { Sidebar } from "@/components/Sidebar";
 import { TopHeader } from "@/components/TopHeader";
 import { AicteEmblem, CheckCircleIcon, TrashIcon } from "@/components/icons";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 interface InstitutionProfile {
   institution_name: string;
@@ -168,22 +167,22 @@ export default function SettingsPage() {
     const fetchSettings = async () => {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
       try {
-        const resProfile = await fetch(`${apiBase}/api/v1/institution/profile`);
+        const resProfile = await apiFetch(`${apiBase}/api/v1/institution/profile`);
         if (resProfile.ok) setProfile(await resProfile.json());
       } catch {}
 
       try {
-        const resUsers = await fetch(`${apiBase}/api/v1/institution/users`);
+        const resUsers = await apiFetch(`${apiBase}/api/v1/institution/users`);
         if (resUsers.ok) setUsers(await resUsers.json());
       } catch {}
 
       try {
-        const resBatches = await fetch(`${apiBase}/api/v1/institution/upload-batches`);
+        const resBatches = await apiFetch(`${apiBase}/api/v1/institution/upload-batches`);
         if (resBatches.ok) setBatches(await resBatches.json());
       } catch {}
 
       try {
-        const resNotif = await fetch(`${apiBase}/api/v1/institution/notifications`);
+        const resNotif = await apiFetch(`${apiBase}/api/v1/institution/notifications`);
         if (resNotif.ok) {
           const data = await resNotif.json();
           setNotifAnomalies(data.validation_anomalies);
@@ -196,7 +195,7 @@ export default function SettingsPage() {
       } catch {}
 
       try {
-        const resSec = await fetch(`${apiBase}/api/v1/institution/security`);
+        const resSec = await apiFetch(`${apiBase}/api/v1/institution/security`);
         if (resSec.ok) {
           const data = await resSec.json();
           setSecurityInfo(data);
@@ -214,7 +213,7 @@ export default function SettingsPage() {
 
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      await fetch(`${apiBase}/api/v1/institution/profile`, {
+      await apiFetch(`${apiBase}/api/v1/institution/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(profile),
@@ -242,7 +241,7 @@ export default function SettingsPage() {
 
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/v1/institution/users`, {
+      const res = await apiFetch(`${apiBase}/api/v1/institution/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -287,7 +286,7 @@ export default function SettingsPage() {
     if (!confirm(`Are you sure you want to remove access for ${userName}?`)) return;
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      await fetch(`${apiBase}/api/v1/institution/users/${id}`, { method: "DELETE" });
+      await apiFetch(`${apiBase}/api/v1/institution/users/${id}`, { method: "DELETE" });
     } catch {}
     setUsers((prev) => prev.filter((u) => u.id !== id));
   };
@@ -302,7 +301,7 @@ export default function SettingsPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${apiBase}/api/v1/institution/upload`, {
+      const res = await apiFetch(`${apiBase}/api/v1/institution/upload`, {
         method: "POST",
         body: formData,
       });
@@ -396,7 +395,7 @@ export default function SettingsPage() {
     setNotifSuccess(false);
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      await fetch(`${apiBase}/api/v1/institution/notifications`, {
+      await apiFetch(`${apiBase}/api/v1/institution/notifications`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -438,7 +437,7 @@ export default function SettingsPage() {
 
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/v1/institution/change-password`, {
+      const res = await apiFetch(`${apiBase}/api/v1/institution/change-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
@@ -1332,14 +1331,9 @@ export default function SettingsPage() {
                     <CheckCircleIcon className="w-4 h-4 text-emerald-600" />
                     <span>Cryptographic Audit Chain: ✓ {securityInfo.audit_chain_status} (Session IP: {securityInfo.active_session_ip})</span>
                   </div>
-                  <a
-                    href={`${API_BASE}/api/v1/audit/verify`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-emerald-700 font-bold hover:underline"
-                  >
-                    Verify Chain &rarr;
-                  </a>
+                  <span className="text-emerald-700 font-bold">
+                    Audit verification is available to authorized AICTE auditors.
+                  </span>
                 </div>
               </div>
             </div>

@@ -38,8 +38,14 @@ from app.schemas.institution import (
 )
 from app.integrations.digilocker import DigiLockerProvider
 from app.integrations.factory import get_digilocker
+from app.config import get_settings
+from app.security.rbac import get_current_user
 
-router = APIRouter(prefix="/institution", tags=["institution"])
+router = APIRouter(
+    prefix="/institution",
+    tags=["institution"],
+    dependencies=[Depends(get_current_user)] if get_settings().is_production else [],
+)
 
 # --------------------------------------------------------------------------- #
 # State Storage (Initialized with the exact records from UI mockup)

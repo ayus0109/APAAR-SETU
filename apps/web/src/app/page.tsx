@@ -3,11 +3,12 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AicteEmblem, BooksIllustration } from "@/components/icons";
+import { API_BASE, saveAccessToken } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("admin@xyzcollege.ac.in");
-  const [password, setPassword] = useState("Demo@1234");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState("INST_ADMIN");
   const [loading, setLoading] = useState(false);
@@ -19,23 +20,29 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/v1/auth/login`, {
+      const res = await fetch(API_BASE + "/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role: selectedRole }),
       });
-
+      const data = await res.json().catch(() => null);
       if (!res.ok) {
-        // If login failed, show friendly message or allow direct demo transition
-        console.warn("API login endpoint returned non-200, continuing to demo dashboard");
+        setError(data?.detail || "Email or password is incorrect.");
+        return;
       }
-      // Successful or demo bypass: route directly to Institution Dashboard
+      if (data?.mfa_required) {
+        setError("This account requires multi-factor authentication, which this demo sign-in does not support yet.");
+        return;
+      }
+      if (typeof data?.access_token !== "string") {
+        throw new Error("The API returned an invalid login response.");
+      }
+
+      saveAccessToken(data.access_token);
       router.push("/dashboard");
     } catch {
-      // Offline fallback: seamless experience
-      router.push("/dashboard");
-    } finally {
+      setError("Could not reach the API. Please try again.");
+    }    } finally {
       setLoading(false);
     }
   };

@@ -10,6 +10,7 @@ the same evidence that stops it.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import hmac
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -137,6 +138,13 @@ def login(
     user = db.execute(select(User).where(User.email == email)).scalar_one_or_none()
 
     if user is None and email == "admin@xyzcollege.ac.in":
+        # The demo account is synthetic, but its password still comes from the
+        # deployment environment. Never issue a token based on the email alone.
+        if not hmac.compare_digest(
+            payload.password.encode("utf-8"),
+            settings.demo_user_password.encode("utf-8"),
+        ):
+            raise _invalid_credentials()
         demo_id = uuid.UUID("11111111-2222-3333-4444-555555555555")
         _set_refresh_cookie(response, create_refresh_token(demo_id), settings)
         return TokenResponse(

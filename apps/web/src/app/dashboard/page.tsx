@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { TopHeader } from "@/components/TopHeader";
@@ -32,7 +33,7 @@ export default function DashboardPage() {
     const fetchDashboard = async () => {
       try {
         const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-        const res = await fetch(`${apiBase}/api/v1/institution/dashboard`);
+        const res = await apiFetch(`${apiBase}/api/v1/institution/dashboard`);
         if (res.ok) {
           const json = await res.json();
           setData(json);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { TopHeader } from "@/components/TopHeader";
@@ -57,7 +58,7 @@ export default function StudentListPage() {
       params.append("page", String(page));
       params.append("page_size", "8");
 
-      const res = await fetch(`${apiBase}/api/v1/institution/students?${params.toString()}`);
+      const res = await apiFetch(`${apiBase}/api/v1/institution/students?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
         setStudents(json.students);
@@ -96,7 +97,7 @@ export default function StudentListPage() {
     if (!confirm(`Are you sure you want to delete student ${name}?`)) return;
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-      await fetch(`${apiBase}/api/v1/institution/students/${id}`, { method: "DELETE" });
+      await apiFetch(`${apiBase}/api/v1/institution/students/${id}`, { method: "DELETE" });
     } catch (err) {
       console.warn("Delete call failed", err);
     }
