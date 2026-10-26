@@ -146,12 +146,20 @@ async function loadDashboardData() {
   } catch {}
 
   // Fallback if backend loading
+  const fallbackStudents = (state.students && state.students.length) ? state.students.length : 585;
   renderDashboardUI({
     approved_intake: 600,
-    actual_enrolment: state.students.length || 582,
-    remaining_seats: Math.max(0, 600 - (state.students.length || 582)),
-    total_students: state.students.length || 582,
-    categories: { General: 280, OBC: 195, SC: 62, ST: 25, NRI: 20 },
+    actual_enrolment: fallbackStudents,
+    remaining_seats: Math.max(0, 600 - fallbackStudents),
+    total_students: fallbackStudents,
+    enrolment_trend: [
+      { year: '2022', actual: 450, approved: 600 },
+      { year: '2023', actual: 485, approved: 600 },
+      { year: '2024', actual: 520, approved: 600 },
+      { year: '2025', actual: 565, approved: 600 },
+      { year: '2026', actual: fallbackStudents, approved: 600 }
+    ],
+    categories: { General: 280, OBC: 195, 'SC / ST': 87, Other: 23 },
     activities: [
       { activity: 'Batch Upload Validated', details: '540 student records processed', time: 'Today, 02:15 PM' },
       { activity: 'APAAR Verified', details: 'Rohan Deshmukh (918273645012)', time: 'Today, 11:30 AM' },
@@ -161,35 +169,209 @@ async function loadDashboardData() {
 }
 
 function renderDashboardUI(data) {
-  const intake = data.approved_intake || 600;
-  const enrolment = data.actual_enrolment || data.total_students || 0;
-  const remaining = Math.max(0, intake - enrolment);
+  const stats = data.stats || data;
+  const intake = stats.approved_intake || 600;
+  const enrolment = stats.actual_enrolment !== undefined ? stats.actual_enrolment : (stats.total_students || 0);
+  const remaining = stats.remaining_seats !== undefined ? stats.remaining_seats : Math.max(0, intake - enrolment);
+  const total = stats.total_students !== undefined ? stats.total_students : enrolment;
 
   if ($('#stat-intake')) $('#stat-intake').textContent = intake.toLocaleString();
   if ($('#stat-enrolment')) $('#stat-enrolment').textContent = enrolment.toLocaleString();
   if ($('#stat-seats')) $('#stat-seats').textContent = remaining.toLocaleString();
-  if ($('#stat-total')) $('#stat-total').textContent = enrolment.toLocaleString();
+  if ($('#stat-total')) $('#stat-total').textContent = total.toLocaleString();
 
   const yearSelect = $('#academic-year');
-  const yearVal = yearSelect ? yearSelect.value : '2025';
+  const yearVal = yearSelect ? yearSelect.value : '2026';
   $$('.year-text').forEach(x => x.textContent = yearVal);
 
-  // Render Category Donut
-  const categories = data.categories || { General: 280, OBC: 195, 'SC / ST': 87, Other: 20 };
-  const donutSpan = $('.distribution-empty .empty-donut span');
-  if (donutSpan) {
-    donutSpan.innerHTML = `${enrolment}<small>Total Students</small>`;
-  }
-  const distP = $('.distribution-empty p');
-  if (distP) {
-    distP.textContent = `General: ${categories.General || 280} | OBC: ${categories.OBC || 195} | SC/ST: ${categories['SC / ST'] || categories.SC || 87}`;
-  }
+  // 1. Render Enrolment Trend Line Chart
+  renderEnrolmentTrendChart(data, intake, enrolment);
 
-  // Activities
-  if (data.activities && data.activities.length) {
+  // 2. Render Category Distribution Donut Chart
+  renderCategoryDonut(data, enrolment);
+
+  // 3. Activities
+  if (data.recent_activities && data.recent_activities.length) {
+    state.activity = data.recent_activities;
+  } else if (data.activities && data.activities.length) {
     state.activity = data.activities;
   }
   renderActivityTable();
+}
+
+function renderEnrolmentTrendChart(data, intake = 600, enrolment = 585) {
+  const chartArea = $('.trend-panel .chart-area');
+  if (!chartArea) return;
+
+  const placeholder = $('.chart-placeholder', chartArea);
+
+  let trendPoints = data.enrolment_trend || [];
+  if (!trendPoints.length) {
+    trendPoints = [
+      { year: '2022', actual: 450, approved: intake },
+      { year: '2023', actual: 485, approved: intake },
+      { year: '2024', actual: 520, approved: intake },
+      { year: '2025', actual: 565, approved: intake },
+      { year: '2026', actual: enrolment, approved: intake }
+    ];
+  }
+
+  if (trendPoints.length === 5 && trendPoints[4].year === '2026') {
+    trendPoints[4].actual = enrolment;
+  }
+
+  const hasRecords = enrolment > 0 || trendPoints.some(p => p.actual > 0);
+  if (!hasRecords) {
+    if (placeholder) placeholder.style.display = 'flex';
+    const oldSvg = $('.trend-svg', chartArea);
+    if (oldSvg) oldSvg.remove();
+    return;
+  }
+
+  if (placeholder) placeholder.style.display = 'none';
+
+  const width = 500;
+  const height = 170;
+  const maxY = 800;
+
+  const getY = (val) => height - (Math.min(val, maxY) / maxY) * height;
+  const getX = (idx) => 50 + idx * 100; // 50, 150, 250, 350, 450 (centers of 5 columns)
+
+  const approvedY = getY(intake);
+
+  const points = trendPoints.slice(0, 5).map((pt, i) => ({
+    x: getX(i),
+    y: getY(pt.actual),
+    actual: pt.actual,
+    year: pt.year
+  }));
+
+  if (points.length < 2) return;
+
+  // Build cubic Bezier curve for smooth flow
+  let pathD = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i];
+    const p1 = points[i + 1];
+    const cpx1 = p0.x + 45;
+    const cpy1 = p0.y;
+    const cpx2 = p1.x - 45;
+    const cpy2 = p1.y;
+    pathD += ` C ${cpx1} ${cpy1}, ${cpx2} ${cpy2}, ${p1.x} ${p1.y}`;
+  }
+
+  const areaD = `${pathD} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+
+  let svg = $('.trend-svg', chartArea);
+  if (!svg) {
+    svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'trend-svg');
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.right = '0';
+    svg.style.bottom = '22px';
+    svg.style.width = '100%';
+    svg.style.height = 'calc(100% - 22px)';
+    svg.style.overflow = 'visible';
+    svg.style.zIndex = '2';
+    chartArea.appendChild(svg);
+  }
+
+  const lastPoint = points[points.length - 1];
+
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1478ff" stop-opacity="0.25" />
+        <stop offset="100%" stop-color="#1478ff" stop-opacity="0.01" />
+      </linearGradient>
+      <filter id="badgeShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#0b315a" flood-opacity="0.18" />
+      </filter>
+    </defs>
+
+    <!-- Approved Intake (${intake}) Guide Line -->
+    <line x1="20" y1="${approvedY}" x2="480" y2="${approvedY}" stroke="#8495aa" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.75" />
+
+    <!-- Shaded Area Under Curve -->
+    <path d="${areaD}" fill="url(#trendGradient)" />
+
+    <!-- Actual Enrolment Line -->
+    <path d="${pathD}" fill="none" stroke="#1478ff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Data Points -->
+    ${points.map((p) => `
+      <g class="chart-point" data-year="${p.year}" data-val="${p.actual}">
+        <circle cx="${p.x}" cy="${p.y}" r="4.5" fill="#ffffff" stroke="#1478ff" stroke-width="2.5" style="cursor:pointer;" />
+      </g>
+    `).join('')}
+
+    <!-- Callout Badge on Current Enrolment -->
+    <g transform="translate(${lastPoint.x - 20}, ${Math.max(10, lastPoint.y - 28)})" filter="url(#badgeShadow)">
+      <rect width="40" height="20" rx="5" fill="#1478ff" />
+      <text x="20" y="14" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif">${lastPoint.actual}</text>
+      <polygon points="15,20 25,20 20,24" fill="#1478ff" />
+    </g>
+  `;
+
+  // Attach interactive tooltips
+  $$('.chart-point circle', svg).forEach(circle => {
+    circle.addEventListener('mouseenter', () => {
+      circle.setAttribute('r', '6.5');
+      const g = circle.parentElement;
+      toast(`${g.dataset.year} Actual Enrolment: ${g.dataset.val} / ${intake}`);
+    });
+    circle.addEventListener('mouseleave', () => {
+      circle.setAttribute('r', '4.5');
+    });
+  });
+}
+
+function renderCategoryDonut(data, enrolment = 0) {
+  const catData = data.categories || (data.category_distribution ? {
+    General: (data.category_distribution.find(c => c.category === 'General') || {}).count || 280,
+    OBC: (data.category_distribution.find(c => c.category === 'OBC') || {}).count || 195,
+    'SC / ST': ((data.category_distribution.find(c => c.category === 'SC') || {}).count || 62) +
+               ((data.category_distribution.find(c => c.category === 'ST') || {}).count || 25),
+    Other: ((data.category_distribution.find(c => c.category === 'NRI') || {}).count || 15) +
+           ((data.category_distribution.find(c => c.category === 'Foreign National') || {}).count || 8)
+  } : { General: 280, OBC: 195, 'SC / ST': 87, Other: 23 });
+
+  // Issue 1 Fix: Aggregate dynamically from category distribution to prevent summary contradiction
+  const catSum = (catData.General || 0) + (catData.OBC || 0) + (catData['SC / ST'] || 0) + (catData.Other || 0);
+  const displayTotal = catSum > 0 ? catSum : (enrolment || 0);
+
+  const p1 = Math.round(((catData.General || 0) / (displayTotal || 1)) * 100);
+  const p2 = p1 + Math.round(((catData.OBC || 0) / (displayTotal || 1)) * 100);
+  const p3 = p2 + Math.round(((catData['SC / ST'] || 0) / (displayTotal || 1)) * 100);
+
+  const donut = $('.empty-donut');
+  if (donut) {
+    if (displayTotal > 0) {
+      donut.style.background = `conic-gradient(#1478ff 0% ${p1}%, #0ebd9b ${p1}% ${p2}%, #f5b000 ${p2}% ${p3}%, #a66ce5 ${p3}% 100%)`;
+    } else {
+      donut.style.background = 'conic-gradient(#e7eff8 0 100%)';
+    }
+  }
+
+  const donutSpan = $('.distribution-panel .empty-donut span') || $('.empty-donut span');
+  if (donutSpan) {
+    donutSpan.innerHTML = `${displayTotal.toLocaleString()}<small>Total Students</small>`;
+  }
+
+  // Issue 13 Fix: Unified category legend with counts & percentages directly adjacent to swatches
+  const calcPct = (val) => displayTotal > 0 ? `(${((val / displayTotal) * 100).toFixed(1)}%)` : '(0%)';
+  if ($('#cat-gen')) $('#cat-gen').textContent = (catData.General || 0).toLocaleString();
+  if ($('#cat-obc')) $('#cat-obc').textContent = (catData.OBC || 0).toLocaleString();
+  if ($('#cat-scst')) $('#cat-scst').textContent = (catData['SC / ST'] || 0).toLocaleString();
+  if ($('#cat-oth')) $('#cat-oth').textContent = (catData.Other || 0).toLocaleString();
+
+  const gEl = $('#cat-gen'); if (gEl && gEl.nextElementSibling) gEl.nextElementSibling.textContent = calcPct(catData.General || 0);
+  const oEl = $('#cat-obc'); if (oEl && oEl.nextElementSibling) oEl.nextElementSibling.textContent = calcPct(catData.OBC || 0);
+  const sEl = $('#cat-scst'); if (sEl && sEl.nextElementSibling) sEl.nextElementSibling.textContent = calcPct(catData['SC / ST'] || 0);
+  const otEl = $('#cat-oth'); if (otEl && otEl.nextElementSibling) otEl.nextElementSibling.textContent = calcPct(catData.Other || 0);
 }
 
 function renderActivityTable() {
@@ -358,12 +540,21 @@ async function loadValidationData() {
     }
   } catch {}
 
-  // Fallback
+  // Fallback: Use full institutional enrolled batch (585) or connected dataset
+  const total = (state.students && state.students.length > 20)
+    ? state.students.length
+    : (state.dashboard && state.dashboard.actual_enrolment ? state.dashboard.actual_enrolment : 585);
+
+  const correctionRecords = 11;
+  const flaggedRecords = 3;
+  const totalIssues = correctionRecords + flaggedRecords; // 14 issues breakdown
+  const validRecords = Math.max(0, total - totalIssues);  // 585 - 14 = 571 (guaranteed non-negative)
+
   renderValidationUI({
-    total_records: state.students.length || 582,
-    valid_records: (state.students.length || 582) - 14,
-    correction_records: 11,
-    flagged_records: 3,
+    total_records: total,
+    valid_records: validRecords,
+    correction_records: correctionRecords,
+    flagged_records: flaggedRecords,
     issues: [
       { type: 'Duplicate APAAR ID', count: 2, details: 'APAAR ID active in multiple submissions', status: 'Review' },
       { type: 'Invalid / Missing APAAR ID', count: 5, details: 'Missing standard 12-digit format checksum', status: 'Review' },
@@ -374,10 +565,15 @@ async function loadValidationData() {
 }
 
 function renderValidationUI(data) {
-  if ($('#val-total')) $('#val-total').textContent = data.total_records || state.students.length;
-  if ($('#val-valid')) $('#val-valid').textContent = data.valid_records || 568;
-  if ($('#val-correction')) $('#val-correction').textContent = data.correction_records || 11;
-  if ($('#val-flagged')) $('#val-flagged').textContent = data.flagged_records || 3;
+  const total = Number(data.total_records !== undefined ? data.total_records : 585);
+  const correction = Number(data.correction_records !== undefined ? data.correction_records : 11);
+  const flagged = Number(data.flagged_records !== undefined ? data.flagged_records : 3);
+  const valid = Math.max(0, Number(data.valid_records !== undefined ? data.valid_records : (total - (correction + flagged))));
+
+  if ($('#val-total')) $('#val-total').textContent = total.toLocaleString();
+  if ($('#val-valid')) $('#val-valid').textContent = valid.toLocaleString();
+  if ($('#val-correction')) $('#val-correction').textContent = correction.toLocaleString();
+  if ($('#val-flagged')) $('#val-flagged').textContent = flagged.toLocaleString();
 
   const issuesBody = $('#issues-body');
   if (issuesBody && data.issues) {
@@ -409,6 +605,24 @@ function renderValidationUI(data) {
         </tr>
       `).join('');
     }
+  }
+
+  // Issue Donut Chart
+  const issueDonut = $('.issue-chart .empty-donut');
+  const issues = data.issues || [];
+  const totalIssues = issues.reduce((acc, it) => acc + (it.count || 0), 0) || (data.flagged_records || 0) + (data.correction_records || 0);
+  if (issueDonut) {
+    const span = $('span', issueDonut);
+    if (span) span.innerHTML = `${totalIssues}<small>Total Issues</small>`;
+    if (totalIssues > 0) {
+      issueDonut.style.background = 'conic-gradient(#e44b4b 0% 35%, #f0a000 35% 65%, #1478ff 65% 90%, #8495aa 90% 100%)';
+    } else {
+      issueDonut.style.background = 'conic-gradient(#e7eff8 0 100%)';
+    }
+  }
+  const issueP = $('.issue-chart p');
+  if (issueP && totalIssues > 0) {
+    issueP.textContent = `${totalIssues} issues identified across active records`;
   }
 }
 
@@ -683,7 +897,58 @@ function exportCSV(filename, rows) {
 // ==============================================================================
 // 7. Event Listeners & Bootstrapping
 // ==============================================================================
+
+// Setup Interactive Notifications Dropdown
+function setupNotifications() {
+  const notifBtn = $('#notifications-btn');
+  const notifDropdown = $('#notifications-dropdown');
+  const markReadBtn = $('#notif-mark-read');
+  const notifBadge = $('#notif-badge');
+  const notifCount = $('#notif-count');
+
+  if (notifBtn && notifDropdown) {
+    notifBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = !notifDropdown.classList.contains('hidden');
+      if (isOpen) {
+        notifDropdown.classList.add('hidden');
+        notifBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        notifDropdown.classList.remove('hidden');
+        notifBtn.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!notifDropdown.contains(e.target) && !notifBtn.contains(e.target)) {
+        notifDropdown.classList.add('hidden');
+        notifBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !notifDropdown.classList.contains('hidden')) {
+        notifDropdown.classList.add('hidden');
+        notifBtn.setAttribute('aria-expanded', 'false');
+        notifBtn.focus();
+      }
+    });
+  }
+
+  if (markReadBtn && notifDropdown) {
+    markReadBtn.addEventListener('click', () => {
+      $$('.notif-item.unread', notifDropdown).forEach(item => {
+        item.classList.remove('unread');
+      });
+      if (notifBadge) notifBadge.style.display = 'none';
+      if (notifCount) notifCount.textContent = '0 new';
+      toast('All notifications marked as read.');
+    });
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  setupNotifications();
   // Login Form
   const loginForm = $('#login-form');
   if (loginForm) {
