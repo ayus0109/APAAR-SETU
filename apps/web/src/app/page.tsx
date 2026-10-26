@@ -5,17 +5,19 @@ import { useRouter } from "next/navigation";
 import { AicteEmblem, BooksIllustration } from "@/components/icons";
 import { API_BASE, saveAccessToken } from "@/lib/api";
 
+const DEMO_EMAIL = "admin@xyzcollege.ac.in";
+const DEMO_PASSWORD = "Demo@admin";
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@xyzcollege.ac.in");
+  const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState("INST_ADMIN");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const authenticate = async (loginEmail: string, loginPassword: string, role: string) => {
     setLoading(true);
     setError(null);
 
@@ -23,7 +25,7 @@ export default function LoginPage() {
       const res = await fetch(API_BASE + "/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, role: selectedRole }),
+        body: JSON.stringify({ email: loginEmail, password: loginPassword, role }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -45,6 +47,16 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    void authenticate(email, password, selectedRole);
+  };
+
+  const handleDemoLogin = () => {
+    setSelectedRole("INST_ADMIN");
+    void authenticate(DEMO_EMAIL, DEMO_PASSWORD, "INST_ADMIN");
   };
 
   return (
@@ -190,6 +202,15 @@ export default function LoginPage() {
               ) : (
                 <span>Login</span>
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={loading}
+              className="w-full rounded-lg border border-blue-200 bg-blue-50 py-2.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Signing in..." : "Quick demo login"}
             </button>
 
             {/* Select Role Radio Group */}
