@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AicteEmblem, BooksIllustration } from "@/components/icons";
 import { API_BASE, saveAccessToken } from "@/lib/api";
@@ -213,31 +212,6 @@ export default function LoginPage() {
             >
               {loading ? "Signing in..." : "Quick demo login"}
             </button>
-
-            <div className="pt-1">
-              <div className="relative mb-3 flex items-center justify-center">
-                <span className="absolute inset-x-0 border-t border-slate-200" />
-                <span className="relative bg-white px-2 text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                  Or explore read-only previews
-                </span>
-              </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <Link
-                  href="/demo-preview/aicte-admin"
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-center text-xs font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  AICTE Admin Preview
-                  <span className="mt-0.5 block text-[10px] font-normal text-slate-500">Read only · sample data</span>
-                </Link>
-                <Link
-                  href="/demo-preview/verifier"
-                  className="rounded-lg border border-slate-200 px-3 py-2.5 text-center text-xs font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                >
-                  Verifier / Employer Preview
-                  <span className="mt-0.5 block text-[10px] font-normal text-slate-500">Read only · sample data</span>
-                </Link>
-              </div>
-            </div>
 
             {/* Select Role Radio Group */}
             <div className="pt-2">
