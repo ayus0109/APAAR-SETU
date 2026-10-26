@@ -24,7 +24,6 @@ jobs:
           set -euo pipefail
           git clone --depth 1 https://github.com/ayus0109/SIH-2026.git /tmp/SIH-2026
           rsync -a --exclude='.git/' /tmp/SIH-2026/ ./
-          rm -f .github/workflows/import-source.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
