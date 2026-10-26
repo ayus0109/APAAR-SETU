@@ -28,6 +28,20 @@ export function TopHeader({
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const [displayName, setDisplayName] = useState(adminName);
+  const [displayRole, setDisplayRole] = useState(adminRole);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("apaar_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.name) setDisplayName(parsed.name);
+        if (parsed.role) setDisplayRole(parsed.role);
+      }
+    } catch {}
+  }, []);
+
 
   useEffect(() => {
     if (!showProfileMenu) return;
@@ -135,20 +149,20 @@ export function TopHeader({
             onClick={() => setShowProfileMenu((open) => !open)}
             aria-haspopup="menu"
             aria-expanded={showProfileMenu}
-            aria-label={`Open profile menu for ${adminName}`}
+            aria-label={`Open profile menu for ${displayName}`}
             className="flex items-center gap-2.5 rounded-lg text-left group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             <span className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-rose-400 p-0.5 shadow-2xs">
               <span className="w-full h-full rounded-full bg-white flex items-center justify-center font-bold text-xs text-rose-600 overflow-hidden">
-                {adminName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
+                {displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}
               </span>
             </span>
             <span>
               <span className="block text-xs font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
-                {adminName}
+                {displayName}
               </span>
               <span className="block text-[10px] text-slate-500 leading-none">
-                {adminRole}
+                {displayRole}
               </span>
             </span>
           </button>
@@ -160,8 +174,8 @@ export function TopHeader({
               className="absolute right-0 mt-3 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5 z-50"
             >
               <div className="px-3 py-2 border-b border-slate-100">
-                <p className="text-xs font-semibold text-slate-800">{adminName}</p>
-                <p className="text-[11px] text-slate-500">{adminRole}</p>
+                <p className="text-xs font-semibold text-slate-800">{displayName}</p>
+                <p className="text-[11px] text-slate-500">{displayRole}</p>
               </div>
               <Link
                 href="/settings"

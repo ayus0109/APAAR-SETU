@@ -30,8 +30,35 @@ from app.models.institution import Institution
 from app.models.user import User
 from app.security.tokens import TokenError, decode_token, subject_uuid
 
-_DEMO_USER_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
+_DEMO_INSTITUTION_ADMIN_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
+_DEMO_AICTE_ADMIN_ID = uuid.UUID("22222222-3333-4444-5555-666666666666")
+_DEMO_VERIFIER_ID = uuid.UUID("33333333-4444-5555-6666-777777777777")
 _DEMO_INSTITUTION_ID = uuid.UUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+
+_DEMO_PRINCIPALS = {
+    _DEMO_INSTITUTION_ADMIN_ID: CurrentUser(
+        id=_DEMO_INSTITUTION_ADMIN_ID,
+        email="admin@xyzcollege.ac.in",
+        role=Role.INST_ADMIN,
+        institution_id=_DEMO_INSTITUTION_ID,
+        region=None,
+    ),
+    _DEMO_AICTE_ADMIN_ID: CurrentUser(
+        id=_DEMO_AICTE_ADMIN_ID,
+        email="admin@aicte.gov.in",
+        role=Role.AICTE_SUPER_ADMIN,
+        institution_id=None,
+        region=None,
+    ),
+    _DEMO_VERIFIER_ID: CurrentUser(
+        id=_DEMO_VERIFIER_ID,
+        email="verifier@tcs.com",
+        role=Role.VERIFIER,
+        institution_id=None,
+        region=None,
+    ),
+}
+
 
 _bearer = HTTPBearer(auto_error=False, description="Access token from /auth/login")
 
@@ -84,14 +111,8 @@ def get_current_user(
 
     # The demo login intentionally has no persistent User row. Resolve only
     # its signed, short-lived token to a synthetic institution-scoped principal.
-    if user_id == _DEMO_USER_ID:
-        return CurrentUser(
-            id=_DEMO_USER_ID,
-            email="admin@xyzcollege.ac.in",
-            role=Role.INST_ADMIN,
-            institution_id=_DEMO_INSTITUTION_ID,
-            region=None,
-        )
+    if user_id in _DEMO_PRINCIPALS:
+        return _DEMO_PRINCIPALS[user_id]
 
     user = db.get(User, user_id)
     if user is None or not user.is_active:
