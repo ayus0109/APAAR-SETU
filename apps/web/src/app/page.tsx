@@ -42,7 +42,7 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch {
       setError("Could not reach the API. Please try again.");
-    }    } finally {
+    } finally {
       setLoading(false);
     }
   };
