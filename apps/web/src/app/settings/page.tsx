@@ -5,6 +5,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { TopHeader } from "@/components/TopHeader";
 import { AicteEmblem, CheckCircleIcon, TrashIcon } from "@/components/icons";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 interface InstitutionProfile {
   institution_name: string;
   institution_id: string;
@@ -1011,7 +1013,7 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <a
-                    href="http://localhost:8000/docs"
+                    href={`${API_BASE}/docs`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs text-blue-600 font-semibold hover:underline"
@@ -1331,7 +1333,7 @@ export default function SettingsPage() {
                     <span>Cryptographic Audit Chain: ✓ {securityInfo.audit_chain_status} (Session IP: {securityInfo.active_session_ip})</span>
                   </div>
                   <a
-                    href="http://localhost:8000/api/v1/audit/verify"
+                    href={`${API_BASE}/api/v1/audit/verify`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-emerald-700 font-bold hover:underline"
