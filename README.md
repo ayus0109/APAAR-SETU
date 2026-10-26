@@ -1,3 +1,2 @@
-# APAAR-SETU
-
-Copied project files from [SIH-2026](https://github.com/ayus0109/SIH-2026).
+# SIH-2026
+This is a APAAR Based Data Management System and Verification. 
